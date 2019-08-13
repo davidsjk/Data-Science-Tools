@@ -1,0 +1,2063 @@
+#IMPORTING TOOLS (PANDAS, MATPLOTLIB, NUMPY, SEABORN, SKLEARN.Pipeline, SKLEARN.Preprocessing (polynomial features))
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler,PolynomialFeatures
+%matplotlib inline
+from scipy import stats
+
+#install the xlrd module:
+!conda install -c anaconda xlrd --yes
+
+#Load Exel
+df_can = pd.read_excel('https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Data_Files/Canada.xlsx',
+                       sheet_name='Canada by Citizenship',
+                       skiprows=range(20),
+                       skipfooter=2)
+
+#LOAD CSV
+
+#load from online
+
+file_name='https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DA0101EN/coursera/project/kc_house_data_NaN.csv'
+df=pd.read_csv(file_name)
+
+
+#Load a table without a header
+df=pd.read_csv(file_name, header = None)
+
+# add header to table without header
+1# create header list
+headers = ["symboling","normalized-losses","make","fuel-type","aspiration", "num-of-doors","body-style",
+"drive-wheels","engine-location","wheel-base", "length","width","height","curb-weight","engine-type",
+"num-of-cylinders", "engine-size","fuel-system","bore","stroke","compression-ratio","horsepower",
+"peak-rpm","city-mpg","highway-mpg","price"]
+
+#Add header while creating DF
+headers = ["symboling","normalized-losses","make","fuel-type","aspiration", "num-of-doors","body-style",
+         "drive-wheels","engine-location","wheel-base", "length","width","height","curb-weight","engine-type",
+         "num-of-cylinders", "engine-size","fuel-system","bore","stroke","compression-ratio","horsepower",
+         "peak-rpm","city-mpg","highway-mpg","price"]
+df = pd.read_csv(filename, names = headers)
+
+# add header to df
+df.columns = headers
+
+
+
+#SAVE CSV ( and others)
+
+#download to local machine
+df.to_csv("automobile.csv",index = False)
+
+
+
+
+#DATA Wrangling
+
+
+# Drop missing values along the column "price" as follows
+df.dropna(subset=["price"], axis=0)
+
+#Select the columns of a data frame
+df[['length','compression-ratio']]
+
+#Replace Missing Values with n
+df = df.fillna(n) 
+
+# replace "?" to NaN
+df.replace("?", np.nan, inplace = True)
+
+#Evaluate Missing Data
+missing_data = df.isnull()
+missing_data.head(5)
+
+#Count missing values in each column
+for column in missing_data.columns.values.tolist():
+    print(column)
+    print (missing_data[column].value_counts())
+    print("") 
+
+#Calculate the average of the column
+avg_norm_loss = df["normalized-losses"].astype("float").mean(axis=0)
+print("Average of normalized-losses:", avg_norm_loss)
+
+#Replace "NaN" by mean value in "normalized-losses" column
+df["normalized-losses"].replace(np.nan, avg_norm_loss, inplace=True)
+
+#replace the missing 'num-of-doors' values by the most frequent (‘four’ for this case)
+df["num-of-doors"].replace(np.nan, "four", inplace=True)
+
+#Drop whole row with NaN in "price" column
+df.dropna(subset=["price"], axis=0, inplace=True)
+## reset index, because we droped two rows
+df.reset_index(drop=True, inplace=True)
+
+#Convert data types to proper format
+df[["bore", "stroke"]] = df[["bore", "stroke"]].astype("float")
+df[["normalized-losses"]] = df[["normalized-losses"]].astype("int")
+df[["price"]] = df[["price"]].astype("float")
+df[["peak-rpm"]] = df[["peak-rpm"]].astype("float")
+
+#Data Standardization
+# #Convert mpg to L/100km by mathematical operation (235 divided by mpg)
+df['city-L/100km'] = 235/df["city-mpg"]
+
+#Data Normalization
+## replace (original value) by (original value)/(maximum value)
+df['length'] = df['length']/df['length'].max()
+df['width'] = df['width']/df['width'].max()
+
+#Data Wrangling Summary
+## clean up the dataset to remove unnecessary columns (eg. REG) 
+df_can.drop(['AREA', 'REG', 'DEV', 'Type', 'Coverage'], axis=1, inplace=True)
+
+## let's rename the columns so that they make sense
+df_can.rename(columns={'OdName':'Country', 'AreaName':'Continent','RegName':'Region'}, inplace=True)
+
+## for sake of consistency, let's also make all column labels of type string
+df_can.columns = list(map(str, df_can.columns))
+
+## set the country name as index - useful for quickly looking up countries using .loc method
+df_can.set_index('Country', inplace=True)
+
+## add total column
+df_can['Total'] = df_can.sum(axis=1)
+
+## years that we will be using in this lesson - useful for plotting later on
+years = list(map(str, range(1980, 2014)))
+print('data dimensions:', df_can.shape)
+
+##groupby
+### group countries by continents and apply sum() function 
+df_continents = df_can.groupby('Continent', axis=0).sum()
+
+### note: the output of the groupby method is a `groupby' object. 
+### we can not use it further until we apply a function (eg .sum())
+print(type(df_can.groupby('Continent', axis=0)))
+df_continents.head()
+
+
+#Indicator Variable
+##(An indicator variable (or dummy variable) is a numerical variable used to label categories. They are called 'dummies' because the numbers themselves don't have inherent meaning.
+##get indicator variables and assign it to data frame "dummy_variable_1"
+dummy_variable_1 = pd.get_dummies(df["fuel-type"])
+dummy_variable_1.head()
+##change column names for clarity
+dummy_variable_1.rename(columns={'fuel-type-diesel':'gas', 'fuel-type-diesel':'diesel'}, inplace=True)
+## merge data frame "df" and "dummy_variable_1" 
+df = pd.concat([df, dummy_variable_1], axis=1)
+##drop original column "fuel-type" from "df"
+df.drop("fuel-type", axis = 1, inplace=True)
+
+#create a Total Column
+df_can['Total'] = df_can.sum(axis=1)
+
+#Select Columns
+##Method 1: Quick and easy, but only works if the column name does NOT have spaces or special characters.
+
+    df.column_name 
+        (returns series)
+##Method 2: More robust, and can filter on multiple columns.
+
+    df['column']  
+        (returns series)
+    df[['column 1', 'column 2']] 
+        (returns dataframe)
+        
+#Select Rows
+ df.loc[label]        
+        ##filters by the labels of the index/column
+  df.iloc[index]       
+       # #filters by the positions of the index/column
+
+Set a different Column as Index
+df_can.set_index('Country', inplace=True)
+# tip: The opposite of set is reset. So to reset the index, we can use df_can.reset_index()
+
+# optional: to remove the name of the index
+df_can.index.name = None
+
+
+#change column name from integer to string
+df_can.columns = list(map(str, df_can.columns))
+## [print (type(x)) for x in df_can.columns.values] #<-- uncomment to check type of column headers
+
+#Make a variable with all the columns
+## useful for plotting later on
+years = list(map(str, range(1980, 2014)))
+years
+
+#filter the dataframe based on a condition
+## 1. create the condition boolean series
+condition = df_can['Continent'] == 'Asia'
+print(condition)
+## 2. pass this condition into the dataFrame
+df_can[condition]
+## we can pass mutliple criteria in the same line. 
+## let's filter for AreaNAme = Asia and RegName = Southern Asia
+
+df_can[(df_can['Continent']=='Asia') & (df_can['Region']=='Southern Asia')]
+
+## note: When using 'and' and 'or' operators, pandas requires we use '&' and '|' instead of 'and' and 'or'
+## don't forget to enclose the two conditions in parentheses
+
+
+# let's examine the types of the column labels (check to see if they are all strings)
+all(isinstance(column, str) for column in df_can.columns)
+
+
+#Create a Percentage
+df_data['Very interested'] = round(df_data['Very interested']*100/2233,2)
+
+
+#Creating a occurance Count
+df_crime1= df_sf['PdDistrict'].value_counts().to_frame()
+df_crime1
+
+##or
+
+df_crime = df_sf.drop(['Category','Descript','DayOfWeek','Date','Time','Resolution','Address','X','Y','Location','PdId'], axis=1, inplace=False)
+df_crime = df_crime.groupby(['PdDistrict'], as_index = False).count()
+df_crime=df_crime.rename(columns={'PdDistrict':'Neighborhood','IncidntNum':'Count'})
+df_crime
+
+
+
+#DATA ANALYSIS
+
+#Print entire dataframe
+df
+
+#Print the first n rows of dataframe
+df.head(n)
+
+#Print the last n rows of dataframe
+df.tail(n)
+
+#Find the names of the columns
+df.columns
+
+#Find data-type of each column
+df.dtypes
+
+#Get statistical summary of each column (Numeric type only)
+df.describe()
+
+#Describe all the columns in "df"
+df.describe(include = "all")
+
+#Describe columns with objects
+df.describe(include=['object'])
+
+#Describe select columns
+df[['length','compression-ratio']].describe()
+
+#Look at the info of "df"
+df.info
+
+$Get list of indicies 
+df.index.values
+
+#get the index and columns as lists
+df_can.columns.tolist()
+df_can.index.tolist()
+
+print (type(df_can.columns.tolist()))
+print (type(df_can.index.tolist()))
+
+#Find the correlation between all variables
+df.corr()
+
+#Find correlation between certain columns
+df[['bore','stroke' ,'compression-ratio','horsepower']].corr()
+
+#Count the occurrence of variable in a column
+df['drive-wheels'].value_counts()
+
+#Make value count to a dataframe
+df['drive-wheels'].value_counts().to_frame()
+
+#Make/Save/Name Header/Name Index of a value count dataframe
+## Make and Save
+drive_wheels_counts = df['drive-wheels'].value_counts().to_frame()
+##Rename Column
+drive_wheels_counts.rename(columns={'drive-wheels': 'value_counts'}, inplace=True)
+##Name index
+drive_wheels_counts.index.name = 'drive-wheels'
+
+#Calculate f the most common type:
+df['num-of-doors'].value_counts().idxmax()
+
+#Get list of unique variable
+df['drive-wheels'].unique()
+
+#Group By
+##Make new DF with necessary columns
+df_group_one = df[['drive-wheels','body-style','price']]
+###Assign the group by column, and find the mean of each group.
+df_group_one = df_group_one.groupby(['drive-wheels'],as_index=False).mean()
+df_group_one
+
+#Group By Multiple Variables
+df_gptest = df[['drive-wheels','body-style','price']]
+grouped_test1 = df_gptest.groupby(['drive-wheels','body-style'],as_index=False).mean()
+## Convert to a Pivot table
+grouped_pivot = grouped_test1.pivot(index='drive-wheels',columns='body-style')
+
+
+#Calculate the Pearson Correlation Coefficient and P-value
+from scipy import stats
+pearson_coef, p_value = stats.pearsonr(df['wheel-base'], df['price'])
+print("The Pearson Correlation Coecient is", pearson_coef, " with a P-value of P =", p_value)
+
+
+#ANOVA: Analysis of Variance
+The Analysis of Variance (ANOVA) is a statistical method used to test whether there are significant
+differences between the means of two or more groups. ANOVA returns two parameters:
+F-test score: ANOVA assumes the means of all groups are the same, calculates how much the
+actual means deviate from the assumption, and reports it as the F-test score. A larger score means
+there is a larger difference between the means.
+P-value: P-value tells how statistically significant is our calculated score value.
+##Groupby different groups in the same variable
+grouped_test2=df_gptest[['drive-wheels', 'price']].groupby(['drive-wheels'])
+##We can obtain the values of the method group using the method "get_group".
+grouped_test2.get_group('4wd')['price']
+##ANOVA
+f_val, p_val = stats.f_oneway(grouped_test2.get_group('fwd')['price'], grouped_test2.get_group('rwd')['price'], grouped_test2.get_group('4wd')['price'])  
+print( "ANOVA results: F=", f_val, ", P =", p_val)
+
+
+
+#DATA VISUALIZATION
+
+#Scatter Plot 
+##(good way to visualize Continuous numerical variables ["int64" or "float64”])
+sns.regplot(x="engine-size", y="price", data=df)
+
+#Scatter Plot starts with Y = 0
+sns.regplot(x="engine-size", y="price", data=df)
+plt.ylim(0,)
+
+#Box Plot
+##(good way to visualize categorical variables [“object" or "int64”])
+sns.boxplot(x="body-style", y="price", data=df)
+
+#Heat Map
+##(heatmap plots the target variable proportional to colour with respect to two variables)
+plt.pcolor(grouped_pivot, cmap='RdBu')
+plt.colorbar()
+plt.show()
+##Label names
+row_labels = grouped_pivot.columns.levels[1]
+col_labels = grouped_pivot.index
+##Move ticks and labels to the center
+ax.set_xticks(np.arange(grouped_pivot.shape[1]) + 0.5, minor=False)
+ax.set_yticks(np.arange(grouped_pivot.shape[0]) + 0.5, minor=False)
+##Insert labels
+ax.set_xticklabels(row_labels, minor=False)
+ax.set_yticklabels(col_labels, minor=False)
+##Rotate label if too long
+plt.xticks(rotation=90)
+g.colorbar(im)
+##Show
+plt.show()
+
+
+#Linear Regression
+##Create the linear regression object
+lm = LinearRegression()
+lm
+##Define Variables
+X = df[['highway-mpg']]
+Y = df['price']
+##Fit linear Model
+lm.fit(X,Y)
+##Out put a prediction
+Yhat=lm.predict(X)
+Yhat[0:5] 
+##Intercept (a)
+lm.intercept_
+##Slope(b)
+lm.coef_
+
+##Calculate R^2
+lm.score(X,Y)
+
+##FINAL estimated linear Model = Yhat = a + bX
+
+#Regression Plot
+##(Good for simple linear regressions. )
+## import the visualization package: seaborn
+import seaborn as sns
+%matplotlib inline
+##Enter chart
+width = 12
+height = 10
+plt.figure(figsize=(width, height))
+sns.regplot(x="highway-mpg", y="price", data=df)
+plt.ylim(0,)
+
+#Residual Plot
+##(good way to visualize the variance of the data.If the points in a residual plot are randomly spread out around the x-axis, then a linear model is appropriate for the data.)
+##Code
+width = 12
+height = 10
+plt.figure(figsize=(width, height))
+sns.residplot(df['highway-mpg'], df['price'])
+plt.show()
+
+
+
+#Multiple Linear Regression
+##Define Variable ‘X’
+Z = df[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']]
+##Fit model
+lm.fit(Z, df['price'])
+##Intercept (a)
+lm.intercept_
+##Slope(b)
+lm.coef_
+
+# Multiple Linear Regression Plot
+##First make a Prediction
+Y_hat = lm.predict(Z)
+## Code
+plt.figure(figsize=(width, height))
+
+ax1 = sns.distplot(df['price'], hist=False, color="r", label="Actual Value")
+sns.distplot(Yhat, hist=False, color="b", label="Fitted Values" , ax=ax1)
+
+plt.title('Actual vs Fitted Values for Price')
+plt.xlabel('Price (in dollars)')
+plt.ylabel('Proportion of Cars')
+
+plt.show()
+plt.close()
+
+
+#MultiLinear Sample
+# write your code here
+regr = linear_model.LinearRegression()
+x = np.asanyarray(train[['ENGINESIZE','CYLINDERS','FUELCONSUMPTION_CITY','FUELCONSUMPTION_HWY']])
+y = np.asanyarray(train[['CO2EMISSIONS']])
+regr.fit (x, y)
+# The coefficients
+print ('Coefficients: ', regr.coef_)
+
+y_hat= regr.predict(test[['ENGINESIZE','CYLINDERS','FUELCONSUMPTION_CITY','FUELCONSUMPTION_HWY']])
+x = np.asanyarray(test[['ENGINESIZE','CYLINDERS','FUELCONSUMPTION_CITY','FUELCONSUMPTION_HWY']])
+y = np.asanyarray(test[['CO2EMISSIONS']])
+print("Residual sum of squares: %.2f"
+      % np.mean((y_hat - y) ** 2))
+
+# Explained variance score: 1 is perfect prediction
+print('Variance score: %.2f' % regr.score(x, y))
+
+
+
+
+MODEL EVALUATION AND REFINEMENT
+
+#Only use numeric Data in Df
+df=df._get_numeric_data()
+
+# Libraries for plotting 
+%%capture
+! pip install ipywidgets
+
+from IPython.display import display
+from IPython.html import widgets 
+from IPython.display import display
+from ipywidgets import interact, interactive, fixed, interact_manual
+
+#Functions for Plotting
+
+#Distribution Plot
+def DistributionPlot(RedFunction, BlueFunction, RedName, BlueName, Title):
+    width = 12
+    height = 10
+    plt.figure(figsize=(width, height))
+
+    ax1 = sns.distplot(RedFunction, hist=False, color="r", label=RedName)
+    ax2 = sns.distplot(BlueFunction, hist=False, color="b", label=BlueName, ax=ax1)
+
+    plt.title(Title)
+    plt.xlabel('Price (in dollars)')
+    plt.ylabel('Proportion of Cars')
+
+    plt.show()
+    plt.close()
+
+#Poliynomial Plot
+def PollyPlot(xtrain, xtest, y_train, y_test, lr,poly_transform):
+    width = 12
+    height = 10
+    plt.figure(figsize=(width, height))
+    
+    
+    #training data 
+    #testing data 
+    # lr:  linear regression object 
+    #poly_transform:  polynomial transformation object 
+ 
+    xmax=max([xtrain.values.max(), xtest.values.max()])
+
+    xmin=min([xtrain.values.min(), xtest.values.min()])
+
+    x=np.arange(xmin, xmax, 0.1)
+
+    plt.plot(xtrain, y_train, 'ro', label='Training Data')
+    plt.plot(xtest, y_test, 'go', label='Test Data')
+    plt.plot(x, lr.predict(poly_transform.fit_transform(x.reshape(-1, 1))), label='Predicted Function')
+    plt.ylim([-10000, 60000])
+    plt.ylabel('Price')
+    plt.legend()
+
+
+#Divide to Training and Testing
+##place the target data price in a separate dataframe y:
+y_data = df['price']
+##drop price data in x data
+x_data=df.drop('price',axis=1)
+##Randomly split our data into training and testing data using the function train_test_split (adjust test size)
+from sklearn.model_selection import train_test_split
+
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.15, random_state=1)
+
+print("number of test samples :", x_test.shape[0])
+print("number of training samples:",x_train.shape[0])
+
+#Testing a Linear Regression Model 
+##Let's import LinearRegression from the module linear_model
+from sklearn.linear_model import LinearRegression
+##create a Linear Regression object:
+lre=LinearRegression()
+##we fit the model using the feature horsepower
+lre.fit(x_train[['horsepower']], y_train)
+##Calculate the R^2 on the test data
+lre.score(x_test[['horsepower']], y_test)
+##R^2 is much smaller using the test data
+lre.score(x_train[['horsepower']], y_train)
+
+
+#Cross-validation Score
+##import model_selection from the module cross_val_score.
+from sklearn.model_selection import cross_val_score
+##We input the object, the feature in this case ' horsepower', the target data (y_data). The parameter 'cv' determines the number of folds; in this case 4
+Rcross = cross_val_score(lre, x_data[['horsepower']], y_data, cv=4)
+##default scoring is R^2; each element in the array has the average R^2 value in the fold:
+Rcross
+##calculate the average and standard deviation of our estimate
+print("The mean of the folds are", Rcross.mean(), "and the standard deviation is" , Rcross.std())
+##We can use negative squared error as a score by setting the parameter 'scoring' metric to 'neg_mean_squared_error'
+-1 * cross_val_score(lre,x_data[['horsepower']], y_data,cv=4,scoring='neg_mean_squared_error')
+
+##You can also use the function 'cross_val_predict' to predict the output. The function splits up the data into the specified number of folds, using one fold to get a prediction while the rest of the folds are used as test data. First import the function:
+yhat = cross_val_predict(lre,x_data[['horsepower']], y_data,cv=4)
+yhat[0:5]
+
+
+
+#Plotting Training and Testing (Actual and Prediction)
+##Create Multiple linear regression objects
+lr = LinearRegression()
+lr.fit(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']], y_train)
+##Prediction using training data:
+yhat_train = lr.predict(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']])
+yhat_train[0:5]
+##Prediction using test data:
+yhat_test = lr.predict(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']])
+yhat_test[0:5]
+
+##Let's perform some model evaluation using our training and testing data separately. 
+##First we import the seaborn and matplotlibb library for plotting.
+import matplotlib.pyplot as plt
+%matplotlib inline
+import seaborn as sns
+##Let's examine the distribution of the predicted values of the training data.
+Title = 'Distribution  Plot of  Predicted Value Using Training Data vs Training Data Distribution'
+DistributionPlot(y_train, yhat_train, "Actual Values (Train)", "Predicted Values (Train)", Title)
+##Use test data
+Title='Distribution  Plot of  Predicted Value Using Test Data vs Data Distribution of Test Data'
+DistributionPlot(y_test,yhat_test,"Actual Values (Test)","Predicted Values (Test)",Title)
+
+#Polynomial Regression
+##Create Test and Training sets
+x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.45, random_state=0)
+#perform a degree 5 polynomial transformation on the feature 'horse power'.
+pr = PolynomialFeatures(degree=5)
+x_train_pr = pr.fit_transform(x_train[['horsepower']])
+x_test_pr = pr.fit_transform(x_test[['horsepower']])
+pr
+##Make a linear regression model and train it
+poly = LinearRegression()
+poly.fit(x_train_pr, y_train)
+##We can see the output of our model using the method "predict." then assign the values to "yhat".
+yhat = poly.predict(x_test_pr)
+yhat[0:5]
+##Let's take the first five predicted values and compare it to the actual targets.
+print("Predicted values:", yhat[0:4])
+print("True values:", y_test[0:4].values)
+##display the training data, testing data, and the predicted function using PollyPlot
+PollyPlot(x_train[['horsepower']], x_test[['horsepower']], y_train, y_test, poly,pr)
+##R^2 of the training data:
+poly.score(x_train_pr, y_train)
+##R^2 of the test data:
+poly.score(x_test_pr, y_test)
+##Let's see how the R^2 changes on the test data for different order polynomials and plot the results:
+Rsqu_test = []
+
+order = [1, 2, 3, 4]
+for n in order:
+    pr = PolynomialFeatures(degree=n)
+    
+    x_train_pr = pr.fit_transform(x_train[['horsepower']])
+    
+    x_test_pr = pr.fit_transform(x_test[['horsepower']])    
+    
+    lr.fit(x_train_pr, y_train)
+    
+    Rsqu_test.append(lr.score(x_test_pr, y_test))
+
+plt.plot(order, Rsqu_test)
+plt.xlabel('order')
+plt.ylabel('R^2')
+plt.title('R^2 Using Test Data')
+plt.text(3, 0.75, 'Maximum R^2 ')    
+
+
+
+#Polynomial Features
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn import linear_model
+train_x = np.asanyarray(train[['ENGINESIZE']])
+train_y = np.asanyarray(train[['CO2EMISSIONS']])
+
+test_x = np.asanyarray(test[['ENGINESIZE']])
+test_y = np.asanyarray(test[['CO2EMISSIONS']])
+
+
+poly = PolynomialFeatures(degree=2)
+train_x_poly = poly.fit_transform(train_x)
+train_x_poly
+
+
+
+
+#Interactive Polynomial Order Test
+def f(order, test_data):
+    x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=test_data, random_state=0)
+    pr = PolynomialFeatures(degree=order)
+    x_train_pr = pr.fit_transform(x_train[['horsepower']])
+    x_test_pr = pr.fit_transform(x_test[['horsepower']])
+    poly = LinearRegression()
+    poly.fit(x_train_pr,y_train)
+    PollyPlot(x_train[['horsepower']], x_test[['horsepower']], y_train,y_test, poly, pr)
+
+interact(f, order=(0, 6, 1), test_data=(0.05, 0.95, 0.05))
+
+
+#Ridge Regression
+#In this section, we will review Ridge Regression we will see how the parameter Alfa changes the model. Just a note here our test data will be used as validation data.
+##Let's perform a degree two polynomial transformation on our data.
+pr=PolynomialFeatures(degree=2)
+x_train_pr=pr.fit_transform(x_train[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg','normalized-losses','symboling']])
+x_test_pr=pr.fit_transform(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg','normalized-losses','symboling']])
+##Let's import Ridge from the module linear models.
+from sklearn.linear_model import Ridge
+##Let's create a Ridge regression object, setting the regularization parameter to 0.1
+RigeModel=Ridge(alpha=0.1)
+##fit the model using the method fit.
+RigeModel.fit(x_train_pr, y_train)
+##Obtain Prediction
+yhat = RigeModel.predict(x_test_pr)
+##Let's compare the first five predicted samples to our test set
+print('predicted:', yhat[0:4])
+print('test set :', y_test[0:4].values)
+##We select the value of Alfa that minimizes the test error, for example, we can use a for loop.
+Rsqu_test = []
+Rsqu_train = []
+dummy1 = []
+ALFA = 10 * np.array(range(0,1000))
+for alfa in ALFA:
+    RigeModel = Ridge(alpha=alfa) 
+    RigeModel.fit(x_train_pr, y_train)
+    Rsqu_test.append(RigeModel.score(x_test_pr, y_test))
+    Rsqu_train.append(RigeModel.score(x_train_pr, y_train))
+##We can plot out the value of R^2 for different Alphas
+width = 12
+height = 10
+plt.figure(figsize=(width, height))
+
+plt.plot(ALFA,Rsqu_test, label='validation data  ')
+plt.plot(ALFA,Rsqu_train, 'r', label='training Data ')
+plt.xlabel('alpha')
+plt.ylabel('R^2')
+plt.legend()
+
+
+
+#Grid Search
+##The term Alfa is a hyperparameter, sklearn has the class GridSearchCV to make the process of finding the best hyperparameter simpler.
+##Let's import GridSearchCV from the module model_selection.
+from sklearn.model_selection import GridSearchCV
+##We create a dictionary of parameter values:
+parameters1= [{'alpha': [0.001,0.1,1, 10, 100, 1000, 10000, 100000, 100000]}]
+parameters1
+##Create a ridge regions object:
+RR=Ridge()
+RR
+##Create a ridge grid search object
+Grid1 = GridSearchCV(RR, parameters1,cv=4)
+##Fit the model
+Grid1.fit(x_data[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']], y_data)
+##The object finds the best parameter values on the validation data. We can obtain the estimator with the best parameters and assign it to the variable BestRR as follows:
+BestRR=Grid1.best_estimator_
+BestRR
+##We now test our model on the test data
+BestRR.score(x_test[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']], y_test)
+
+
+#Matplot
+##we are using the inline backend
+%matplotlib inline 
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+## apply a style to Matplotlib
+print(plt.style.available)
+
+
+#line plot
+df.plot()
+##eg
+haiti = df_can.loc['Haiti', years] # passing in years 1980 - 2013 to exclude the 'total' column
+haiti.head()
+haiti.plot()
+##pandas automatically populated the x-axis with the index values (years), and the y-axis with the column values (population). However, notice how the years were not displayed because they are of type string. Therefore, let's change the type of the index values to integer for plotting.
+Also, let's label the x and y axis using plt.title(), plt.ylabel(), and plt.xlabel() as follows:
+
+haiti.index = haiti.index.map(int) # let's change the index values of Haiti to type integer for plotting
+haiti.plot(kind='line')
+
+plt.title('Immigration from Haiti')
+plt.ylabel('Number of immigrants')
+plt.xlabel('Years')
+plt.show() # need this line to show the updates made to the figure
+
+##annotate as special event in the line
+haiti.plot(kind='line')
+plt.title('Immigration from Haiti')
+plt.ylabel('Number of Immigrants')
+plt.xlabel('Years')
+# annotate the 2010 Earthquake. 
+# syntax: plt.text(x, y, label)
+plt.text(2000, 6000, '2010 Earthquake') # see note below
+
+plt.show() 
+
+
+##transposing plot when x and y is backwards
+df_CI = df_CI.transpose()
+df_CI.head()
+## let's change the index values of df_CI to type integer for plotting
+df_CI.index = df_CI.index.map(int) 
+df_CI.plot(kind='line')
+
+
+
+#Reorder dataframe and plot 5 lines
+
+ ##Step 1: Get the dataset. Recall that we created a Total column that calculates the cumulative immigration by country. \\ We will sort on this column to get our top 5 countries using pandas sort_values() method.
+##inplace = True paramemter saves the changes to the original df_can dataframe
+df_can.sort_values(by='Total', ascending=False, axis=0, inplace=True)
+
+## get the top 5 entries
+df_top5 = df_can.head(5)
+
+## transpose the dataframe
+df_top5 = df_top5[years].transpose() 
+
+print(df_top5)
+
+## Step 2: Plot the dataframe. To make the plot more readeable, we will change the size using the `figsize` parameter.
+df_top5.index = df_top5.index.map(int) # let's change the index values of df_top5 to type integer for plotting
+df_top5.plot(kind='line', figsize=(14, 8)) # pass a tuple (x, y) size
+
+plt.title('Immigration Trend of Top 5 Countries')
+plt.ylabel('Number of Immigrants')
+plt.xlabel('Years')
+
+plt.show()
+
+
+#Create dfferent types of plots using .plot(kind = "") function
+bar for vertical bar plots
+barh for horizontal bar plots
+hist for histogram
+box for boxplot
+kde or density for density plots
+area for area plots
+pie for pie plots
+scatter for scatter plots
+hexbin for hexbin plot
+
+
+
+
+#Stacked line Plot/ Area Plot
+## use the inline backend to generate the plots within the browser
+%matplotlib inline 
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
+mpl.style.use('ggplot') # optional: for ggplot-like style
+
+## check for latest version of Matplotlib
+print ('Matplotlib version: ', mpl.__version__) # >= 2.0.0
+
+##Area plots are stacked by default. And to produce a stacked area plot, each column must be either all positive or all negative values (any NaN values will defaulted to 0). To produce an unstacked plot, pass stacked=False.
+
+df_top5.index = df_top5.index.map(int) # let's change the index values of df_top5 to type integer for plotting
+df_top5.plot(kind='area', 
+             stacked=False,
+             figsize=(20, 10), # pass a tuple (x, y) size
+             )
+
+plt.title('Immigration Trend of Top 5 Countries')
+plt.ylabel('Number of Immigrants')
+plt.xlabel('Years')
+
+plt.show()
+
+##Modify transparency with a value
+df_top5.plot(kind='area', 
+             alpha=0.25, # 0-1, default value a= 0.5
+             stacked=False,
+             figsize=(20, 10),
+            )
+
+plt.title('Immigration Trend of Top 5 Countries')
+plt.ylabel('Number of Immigrants')
+plt.xlabel('Years')
+
+plt.show()
+
+
+
+
+#Binning
+##Binning is a process of transforming continuous numerical variables into discrete categorical 'bins', for grouped analysis.
+##Convert data to correct format
+df["horsepower"]=df["horsepower"].astype(int, copy=True)
+##Lets plot the histogram of horspower, to see what the distribution of horsepower looks like.
+%matplotlib inline
+import matplotlib as plt
+from matplotlib import pyplot
+plt.pyplot.hist(df["horsepower"])
+## set x/y labels and plot title
+plt.pyplot.xlabel("horsepower")
+plt.pyplot.ylabel("count")
+plt.pyplot.title("horsepower bins")
+##Create BIN
+bins = np.linspace(min(df["horsepower"]), max(df["horsepower"]), 4)
+bins
+##set group names:
+group_names = ['Low', 'Medium', 'High']
+##Cut
+df['horsepower-binned'] = pd.cut(df['horsepower'], bins, labels=group_names, include_lowest=True )
+df[['horsepower','horsepower-binned']].head(20)
+##Lets see the number of vehicles in each bin.
+df["horsepower-binned"].value_counts()
+##Plot Bin
+%matplotlib inline
+import matplotlib as plt
+from matplotlib import pyplot
+pyplot.bar(group_names, df["horsepower-binned"].value_counts())
+## set x/y labels and plot title
+plt.pyplot.xlabel("horsepower")
+plt.pyplot.ylabel("count")
+plt.pyplot.title("horsepower bins")
+##Create histogram for Bin
+%matplotlib inline
+import matplotlib as plt
+from matplotlib import pyplot
+a = (0,1,2)
+## draw historgram of attribute "horsepower" with bins = 3
+plt.pyplot.hist(df["horsepower"], bins = 3)
+## set x/y labels and plot title
+plt.pyplot.xlabel("horsepower")
+plt.pyplot.ylabel("count")
+plt.pyplot.title("horsepower bins")
+
+#Histogram# 
+np.histogram returns 2 values
+count, bin_edges = np.histogram(df_can['2013'])
+
+print(count) # frequency count
+print(bin_edges) # bin ranges, default = 10 bins
+##By default, the histrogram method breaks up the dataset into 10 bins.
+##We can easily graph this distribution by passing kind=hist to plot().
+df_can['2013'].plot(kind='hist', figsize=(8, 5))
+
+plt.title('Histogram of Immigration from 195 Countries in 2013') # add a title to the histogram
+plt.ylabel('Number of Countries') # add y-label
+plt.xlabel('Number of Immigrants') # add x-label
+
+plt.show()
+##Notice that the x-axis labels do not match with the bin size. This can be fixed by passing in a xticks keyword that contains the list of the bin sizes, as follows:
+
+# 'bin_edges' is a list of bin intervals
+count, bin_edges = np.histogram(df_can['2013'])
+
+df_can['2013'].plot(kind='hist', figsize=(8, 5), xticks=bin_edges)
+
+plt.title('Histogram of Immigration from 195 countries in 2013') # add a title to the histogram
+plt.ylabel('Number of Countries') # add y-label
+plt.xlabel('Number of Immigrants') # add x-label
+
+plt.show()
+
+
+#Multiple bins
+## let's get the x-tick values
+count, bin_edges = np.histogram(df_t, 15)
+
+## un-stacked histogram
+df_t.plot(kind ='hist', 
+          figsize=(10, 6),
+          bins=15,
+          alpha=0.6,
+          xticks=bin_edges,
+          color=['coral', 'darkslateblue', 'mediumseagreen']
+         )
+
+plt.title('Histogram of Immigration from Denmark, Norway, and Sweden from 1980 - 2013')
+plt.ylabel('Number of Years')
+plt.xlabel('Number of Immigrants')
+
+plt.show()
+
+#For a full listing of colors available in Matplotlib, run the following code in your python shell:
+import matplotlib
+for name, hex in matplotlib.colors.cnames.items():
+    print(name, hex)
+    
+#adjusting Bin edge
+count, bin_edges = np.histogram(df_t, 15)
+xmin = bin_edges[0] - 10   #  first bin value is 31.0, adding buffer of 10 for aesthetic purposes 
+xmax = bin_edges[-1] + 10  #  last bin value is 308.0, adding buffer of 10 for aesthetic purposes
+
+# stacked Histogram
+df_t.plot(kind='hist',
+          figsize=(10, 6), 
+          bins=15,
+          xticks=bin_edges,
+          color=['coral', 'darkslateblue', 'mediumseagreen'],
+          stacked=True,
+          xlim=(xmin, xmax)
+         )
+
+plt.title('Histogram of Immigration from Denmark, Norway, and Sweden from 1980 - 2013')
+plt.ylabel('Number of Years')
+plt.xlabel('Number of Immigrants') 
+
+plt.show()
+
+#Summary Histogram
+## generate histogram
+df_gab = df_can.loc[['Greece', 'Albania', 'Bulgaria'], years]
+df_gab = df_gab.transpose()
+df_gab.head()
+
+## let's get the x-tick values
+count, bin_edges = np.histogram(df_gab, 15)
+
+## un-stacked histogram
+df_gab.plot(kind ='hist', 
+          figsize=(10, 6),
+          bins=15,
+          alpha=0.35,
+          xticks=bin_edges,
+          color=['coral', 'darkslateblue', 'mediumseagreen']
+         )
+
+plt.title('Histogram of Immigration from Greece, Albania, and Bulgaria from 1980 - 2013')
+plt.ylabel('Number of Years')
+plt.xlabel('Number of Immigrants')
+
+plt.show()
+
+
+#Bar Chart
+##To create a bar plot, we can pass one of two arguments via kind parameter in plot():
+##kind=bar creates a vertical bar plot
+##kind=barh creates a horizontal bar plot
+
+df_iceland.plot(kind='bar', figsize=(10, 6), rot=90) 
+
+plt.xlabel('Year')
+plt.ylabel('Number of Immigrants')
+plt.title('Icelandic Immigrants to Canada from 1980 to 2013')
+
+## Annotate arrow
+plt.annotate('',                      # s: str. will leave it blank for no text
+             xy=(32, 70),             # place head of the arrow at point (year 2012 , pop 70)
+             xytext=(28, 20),         # place base of the arrow at point (year 2008 , pop 20)
+             xycoords='data',         # will use the coordinate system of the object being annotated 
+             arrowprops=dict(arrowstyle='->', connectionstyle='arc3', color='blue', lw=2)
+            )
+
+## Annotate Text
+plt.annotate('2008 - 2011 Financial Crisis', # text to display
+             xy=(28, 30),                    # start the text at at point (year 2008 , pop 30)
+             rotation=72.5,                  # based on trial and error to match the arrow
+             va='bottom',                    # want the text to be vertically 'bottom' aligned
+             ha='left',                      # want the text to be horizontally 'left' algned.
+            )
+
+plt.show()
+
+
+#Simple Horizontal Bar 
+df_can.sort_values(by='Total', ascending=True, inplace=True)
+
+# get top 15 countries
+df_top15 = df_can['Total'].tail(15)
+df_top15
+
+
+df_top15.plot(kind='barh', figsize=(12, 12), color='steelblue')
+plt.xlabel('Number of Immigrants')
+plt.title('Top 15 Conuntries Contributing to the Immigration to Canada between 1980 - 2013')
+
+ # annotate value labels to each country
+for index, value in enumerate(df_top15): 
+    label = format(int(value), ',') # format int with commas
+    # place text at the end of bar (subtracting 47000 from x, and 0.1 from y to make it fit within the bar)
+    plt.annotate(label, xy=(value - 47000, index - 0.10), color='white')
+
+
+#Advanced Bar Chart with Percentage
+import matplotlib.pyplot as plt
+
+ax = df_data.plot(kind='bar', figsize=(20, 8), width=0.8, fontsize=14, color=['#5cb85c','#5bc0de','#d9534f'])
+
+ax.set_title('Pecentage of Respondents\'Interest in Data Science Area', fontsize=16)
+ax.legend(fontsize=14)
+
+ax.get_yaxis().set_visible(False)
+
+ax.spines['top'].set_visible(False)
+
+ax.spines['right'].set_visible(False)
+
+ax.spines['left'].set_visible(False)
+
+
+for p in ax.patches:
+    width, height = p.get_width(), p.get_height()
+    height = height.round(2)
+    x, y = p.get_xy()
+    ax.annotate(height,(p.get_x()+.15*width, p.get_y() + height + 2.25))
+
+for p in ax.patches:
+    width, height = p.get_width(), p.get_height()
+    height = height.round(2)
+    x, y = p.get_xy()
+    ax.annotate('%',(p.get_x()+.76*width, p.get_y() + height + 2.25))
+
+
+
+
+#Simple Pie Chart
+# autopct create %, start angle represent starting point
+df_continents['Total'].plot(kind='pie',
+                            figsize=(5, 6),
+                            autopct='%1.1f%%', # add in percentages
+                            startangle=90,     # start angle 90° (Africa)
+                            shadow=True,       # add shadow      
+                            )
+
+plt.title('Immigration to Canada by Continent [1980 - 2013]')
+plt.axis('equal') # Sets the pie chart to look like a circle.
+
+plt.show()
+
+
+#Improved Pie Chart
+colors_list = ['gold', 'yellowgreen', 'lightcoral', 'lightskyblue', 'lightgreen', 'pink']
+explode_list = [0.1, 0, 0, 0, 0.1, 0.1] # ratio for each continent with which to offset each wedge.
+
+df_continents['Total'].plot(kind='pie',
+                            figsize=(15, 6),
+                            autopct='%1.1f%%', 
+                            startangle=90,    
+                            shadow=True,       
+                            labels=None,         # turn off labels on pie chart
+                            pctdistance=1.12,    # the ratio between the center of each pie slice and the start of the text generated by autopct 
+                            colors=colors_list,  # add custom colors
+                            explode=explode_list # 'explode' lowest 3 continents
+                            )
+
+# scale the title up by 12% to match pctdistance
+plt.title('Immigration to Canada by Continent [1980 - 2013]', y=1.12) 
+
+plt.axis('equal') 
+
+# add legend
+plt.legend(labels=df_continents.index, loc='upper left') 
+
+plt.show()
+
+
+#Box Chart
+
+## to get a dataframe, place extra square brackets around 'China',India'.
+df_CI= df_can.loc[['China', 'India'], years].transpose()
+df_CI.head()
+
+df_CI.plot(kind='box', figsize=(8, 6))
+
+plt.title('Box plot of Chinese and Indian Immigrants from 1980 - 2013')
+plt.ylabel('Number of Immigrants')
+
+plt.show()
+
+df_CI.describe()
+
+
+# horizontal box plots
+df_CI.plot(kind='box', figsize=(10, 7), color='blue', vert=False)
+
+plt.title('Box plots of Immigrants from China and India (1980 - 2013)')
+plt.xlabel('Number of Immigrants')
+
+plt.show()
+
+
+#Subplots (Creating Multiple Plots)
+fig = plt.figure() # create figure
+
+# add subplot 1 (1 row, 2 columns, first plot)
+ax0 = fig.add_subplot(1, 2, 1) 
+# add subplot 2 (1 row, 2 columns, second plot). See tip below**
+ax1 = fig.add_subplot(1, 2, 2) 
+
+# Subplot 1: Box plot
+df_CI.plot(kind='box', color='blue', vert=False, figsize=(20, 6), ax=ax0) # add to subplot 1
+ax0.set_title('Box Plots of Immigrants from China and India (1980 - 2013)')
+ax0.set_xlabel('Number of Immigrants')
+ax0.set_ylabel('Countries')
+
+# Subplot 2: Line plot
+df_CI.plot(kind='line', figsize=(20, 6), ax=ax1) # add to subplot 2
+ax1.set_title ('Line Plots of Immigrants from China and India (1980 - 2013)')
+ax1.set_ylabel('Number of Immigrants')
+ax1.set_xlabel('Years')
+
+plt.show()
+
+
+
+#Divide by the years to make 3 box plots
+df_top15 = df_can.sort_values(['Total'], ascending=False, axis=0).head(15)
+df_top15
+
+## create a list of all years in decades 80's, 90's, and 00's
+years_80s = list(map(str, range(1980, 1990))) 
+years_90s = list(map(str, range(1990, 2000))) 
+years_00s = list(map(str, range(2000, 2010))) 
+
+## slice the original dataframe df_can to create a series for each decade
+df_80s = df_top15.loc[:, years_80s].sum(axis=1) 
+df_90s = df_top15.loc[:, years_90s].sum(axis=1) 
+df_00s = df_top15.loc[:, years_00s].sum(axis=1)
+
+## merge the three series into a new data frame
+new_df = pd.DataFrame({'1980s': df_80s, '1990s': df_90s, '2000s':df_00s}) 
+
+## display dataframe
+new_df.head()
+
+new_df.plot(kind='box', figsize=(10, 6))
+
+plt.title('Immigration from top 15 countries for decades 80s, 90s and 2000s')
+
+plt.show()
+
+
+
+#Scatter Plot
+##Prep
+## we can use the sum() method to get the total population per year
+df_tot = pd.DataFrame(df_can[years].sum(axis=0))
+
+## change the years to type int (useful for regression later on)
+df_tot.index = map(int, df_tot.index)
+
+## reset the index to put in back in as a column in the df_tot dataframe
+df_tot.reset_index(inplace = True)
+
+## rename columns
+df_tot.columns = ['year', 'total']
+
+## view the final dataframe
+df_tot.head()
+df_tot.plot(kind='scatter', x='year', y='total', figsize=(10, 6), color='darkblue')
+
+plt.title('Total Immigration to Canada from 1980 - 2013')
+plt.xlabel('Year')
+plt.ylabel('Number of Immigrants')
+
+plt.show()
+
+#Regression to Scatter Plot
+df_tot.plot(kind='scatter', x='year', y='total', figsize=(10, 6), color='darkblue')
+
+plt.title('Total Immigration to Canada from 1980 - 2013')
+plt.xlabel('Year')
+plt.ylabel('Number of Immigrants')
+
+plt.show()
+df_tot.plot(kind='scatter', x='year', y='total', figsize=(10, 6), color='darkblue')
+
+plt.title('Total Immigration to Canada from 1980 - 2013')
+plt.xlabel('Year')
+plt.ylabel('Number of Immigrants')
+
+# plot line of best fit
+plt.plot(x, fit[0] * x + fit[1], color='red') # recall that x is the Years
+plt.annotate('y={0:.0f} x + {1:.0f}'.format(fit[0], fit[1]), xy=(2000, 150000))
+
+plt.show()
+
+# print out the line of best fit
+'No. Immigrants = {0:.0f} * Year + {1:.0f}'.format(fit[0], fit[1]) 
+
+#The output is an array with the polynomial coefficients, highest powers first. Since we are plotting a linear regression y= a*x + b, our output has 2 elements [5.56709228e+03, -1.09261952e+07] with the the slope in position 0 and intercept in position 1.
+Step 2: Plot the regression line on the scatter plot.
+#Using the equation of line of best fit, we can estimate the number of immigrants in 2015:
+No. Immigrants = 5567 * Year - 10926195
+No. Immigrants = 5567 * 2015 - 10926195
+No. Immigrants = 291,310
+
+
+#Another Example of Scatter Plot 
+## create df_countries dataframe
+df_countries = df_can.loc[['Denmark', 'Norway', 'Sweden'], years].transpose()
+df_countries.head()
+
+## create df_total by summing across three countries for each year
+df_total = pd.DataFrame(df_countries.sum(axis=1))
+df_total.head()
+
+## reset index in place
+df_total.reset_index(inplace=True)
+df_total.head()
+
+## rename columns
+df_total.columns = ['year', 'total']
+
+## change column year from string to int to create scatter plot
+df_total['year'] = df_total['year'].astype(int)
+
+## show resulting dataframe
+df_total.head()
+
+## generate scatter plot
+df_total.plot(kind='scatter', x='year', y='total', figsize=(10, 6), color='darkblue')
+## add title and label to axes
+plt.title('Immigration from Denmark, Norway, and Sweden to Canada from 1980 - 2013')
+plt.xlabel('Year')
+plt.ylabel('Number of Immigrants')
+
+## show plot
+plt.show()
+
+
+
+#Bubble Plot
+df_can_t = df_can[years].transpose() # transposed dataframe
+
+## cast the Years (the index) to type int
+df_can_t.index = map(int, df_can_t.index)
+
+## let's label the index. This will automatically be the column name when we reset the index
+df_can_t.index.name = 'Year'
+
+## reset index to bring the Year in as a column
+df_can_t.reset_index(inplace=True)
+
+## view the changes
+df_can_t.head()
+
+##Normalize using feature scaling
+# normalize Brazil data
+norm_brazil = (df_can_t['Brazil'] - df_can_t['Brazil'].min()) / (df_can_t['Brazil'].max() - df_can_t['Brazil'].min())
+
+# normalize Argentina data
+norm_argentina = (df_can_t['Argentina'] - df_can_t['Argentina'].min()) / (df_can_t['Argentina'].max() - df_can_t['Argentina'].min())
+
+# Brazil
+ax0 = df_can_t.plot(kind='scatter',
+                    x='Year',
+                    y='Brazil',
+                    figsize=(14, 8),
+                    alpha=0.5,                  # transparency
+                    color='green',
+                    s=norm_brazil * 2000 + 10,  # pass in weights 
+                    xlim=(1975, 2015)
+                   )
+
+# Argentina
+ax1 = df_can_t.plot(kind='scatter',
+                    x='Year',
+                    y='Argentina',
+                    alpha=0.5,
+                    color="blue",
+                    s=norm_argentina * 2000 + 10,
+                    ax = ax0
+                   )
+
+ax0.set_ylabel('Number of Immigrants')
+ax0.set_title('Immigration from Brazil and Argentina from 1980 - 2013')
+ax0.legend(['Brazil', 'Argentina'], loc='upper left', fontsize='x-large')
+
+
+#Waffle Chart
+##Step 1. The first step into creating a waffle chart is determing the proportion of each category with respect to the total.
+## let's create a new dataframe for these three countries 
+df_dsn = df_can.loc[['Denmark', 'Norway', 'Sweden'], :]
+
+## let's take a look at our dataframe
+df_dsn
+## compute the proportion of each category with respect to the total
+total_values = sum(df_dsn['Total'])
+category_proportions = [(float(value) / total_values) for value in df_dsn['Total']]
+
+## print out proportions
+for i, proportion in enumerate(category_proportions):
+    print (df_dsn.index.values[i] + ': ' + str(proportion))
+    
+##Step 2. The second step is defining the overall size of the waffle chart.    
+width = 40 # width of chart
+height = 10 # height of chart
+
+total_num_tiles = width * height # total number of tiles
+
+print ('Total number of tiles is ', total_num_tiles)
+
+##Step 3. The third step is using the proportion of each category to determe it respective number of tiles
+## compute the number of tiles for each catagory
+tiles_per_category = [round(proportion * total_num_tiles) for proportion in category_proportions]
+
+## print out number of tiles per category
+for i, tiles in enumerate(tiles_per_category):
+    print (df_dsn.index.values[i] + ': ' + str(tiles))
+    
+##Step 4. The fourth step is creating a matrix that resembles the waffle chart and populating it.
+# initialize the waffle chart as an empty matrix
+waffle_chart = np.zeros((height, width))
+
+# define indices to loop through waffle chart
+category_index = 0
+tile_index = 0
+
+# populate the waffle chart
+for col in range(width):
+    for row in range(height):
+        tile_index += 1
+
+        # if the number of tiles populated for the current category is equal to its corresponding allocated tiles...
+        if tile_index > sum(tiles_per_category[0:category_index]):
+            # ...proceed to the next category
+            category_index += 1       
+            
+        # set the class value to an integer, which increases with class
+        waffle_chart[row, col] = category_index
+        
+print ('Waffle chart populated!')
+
+waffle_chart
+
+##Step 5. Map the waffle chart matrix into a visual.
+# instantiate a new figure object
+fig = plt.figure()
+
+# use matshow to display the waffle chart
+colormap = plt.cm.coolwarm
+plt.matshow(waffle_chart, cmap=colormap)
+plt.colorbar()
+
+##Step 6. Prettify the chart.
+# instantiate a new figure object
+fig = plt.figure()
+
+# use matshow to display the waffle chart
+colormap = plt.cm.coolwarm
+plt.matshow(waffle_chart, cmap=colormap)
+plt.colorbar()
+
+# get the axis
+ax = plt.gca()
+
+# set minor ticks
+ax.set_xticks(np.arange(-.5, (width), 1), minor=True)
+ax.set_yticks(np.arange(-.5, (height), 1), minor=True)
+    
+# add gridlines based on minor ticks
+ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+plt.xticks([])
+plt.yticks([])
+
+##Step 7. Create a legend and add it to chart.
+# instantiate a new figure object
+fig = plt.figure()
+
+# use matshow to display the waffle chart
+colormap = plt.cm.coolwarm
+plt.matshow(waffle_chart, cmap=colormap)
+plt.colorbar()
+
+# get the axis
+ax = plt.gca()
+
+# set minor ticks
+ax.set_xticks(np.arange(-.5, (width), 1), minor=True)
+ax.set_yticks(np.arange(-.5, (height), 1), minor=True)
+    
+# add gridlines based on minor ticks
+ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+plt.xticks([])
+plt.yticks([])
+
+# compute cumulative sum of individual categories to match color schemes between chart and legend
+values_cumsum = np.cumsum(df_dsn['Total'])
+total_values = values_cumsum[len(values_cumsum) - 1]
+
+# create legend
+legend_handles = []
+for i, category in enumerate(df_dsn.index.values):
+    label_str = category + ' (' + str(df_dsn['Total'][i]) + ')'
+    color_val = colormap(float(values_cumsum[i])/total_values)
+    legend_handles.append(mpatches.Patch(color=color_val, label=label_str))
+
+# add legend to chart
+plt.legend(handles=legend_handles,
+           loc='lower center', 
+           ncol=len(df_dsn.index.values),
+           bbox_to_anchor=(0., -0.2, 0.95, .1)
+          )
+          
+          
+#Waffle Chart Summarized (simply input)
+def create_waffle_chart(categories, values, height, width, colormap, value_sign=''):
+
+    # compute the proportion of each category with respect to the total
+    total_values = sum(values)
+    category_proportions = [(float(value) / total_values) for value in values]
+
+    # compute the total number of tiles
+    total_num_tiles = width * height # total number of tiles
+    print ('Total number of tiles is', total_num_tiles)
+    
+    # compute the number of tiles for each catagory
+    tiles_per_category = [round(proportion * total_num_tiles) for proportion in category_proportions]
+
+    # print out number of tiles per category
+    for i, tiles in enumerate(tiles_per_category):
+        print (df_dsn.index.values[i] + ': ' + str(tiles))
+    
+    # initialize the waffle chart as an empty matrix
+    waffle_chart = np.zeros((height, width))
+
+    # define indices to loop through waffle chart
+    category_index = 0
+    tile_index = 0
+
+    # populate the waffle chart
+    for col in range(width):
+        for row in range(height):
+            tile_index += 1
+
+            # if the number of tiles populated for the current category 
+            # is equal to its corresponding allocated tiles...
+            if tile_index > sum(tiles_per_category[0:category_index]):
+                # ...proceed to the next category
+                category_index += 1       
+            
+            # set the class value to an integer, which increases with class
+            waffle_chart[row, col] = category_index
+    
+    # instantiate a new figure object
+    fig = plt.figure()
+
+    # use matshow to display the waffle chart
+    colormap = plt.cm.coolwarm
+    plt.matshow(waffle_chart, cmap=colormap)
+    plt.colorbar()
+
+    # get the axis
+    ax = plt.gca()
+
+    # set minor ticks
+    ax.set_xticks(np.arange(-.5, (width), 1), minor=True)
+    ax.set_yticks(np.arange(-.5, (height), 1), minor=True)
+    
+    # add dridlines based on minor ticks
+    ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+    plt.xticks([])
+    plt.yticks([])
+
+    # compute cumulative sum of individual categories to match color schemes between chart and legend
+    values_cumsum = np.cumsum(values)
+    total_values = values_cumsum[len(values_cumsum) - 1]
+
+    # create legend
+    legend_handles = []
+    for i, category in enumerate(categories):
+        if value_sign == '%':
+            label_str = category + ' (' + str(values[i]) + value_sign + ')'
+        else:
+            label_str = category + ' (' + value_sign + str(values[i]) + ')'
+            
+        color_val = colormap(float(values_cumsum[i])/total_values)
+        legend_handles.append(mpatches.Patch(color=color_val, label=label_str))
+
+    # add legend to chart
+    plt.legend(
+        handles=legend_handles,
+        loc='lower center', 
+        ncol=len(categories),
+        bbox_to_anchor=(0., -0.2, 0.95, .1)
+    )
+    
+    
+##Now to create a waffle chart, all we have to do is call the function create_waffle_chart. Let's define the input parameters:
+width = 40 # width of chart
+height = 10 # height of chart
+
+categories = df_dsn.index.values # categories
+values = df_dsn['Total'] # correponding values of categories
+
+colormap = plt.cm.coolwarm # color map class   
+
+create_waffle_chart(categories, values, height, width, colormap)
+
+
+
+#Word Cloud
+## install wordcloud
+!conda install -c conda-forge wordcloud==1.4.1 --yes
+
+## import package and its set of stopwords
+from wordcloud import WordCloud, STOPWORDS
+
+print ('Wordcloud is installed and imported!')
+
+## download file and save as alice_novel.txt
+!wget --quiet https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Data_Files/alice_novel.txt
+
+## open the file and read it into a variable alice_novel
+alice_novel = open('alice_novel.txt', 'r').read()
+
+stopwords = set(STOPWORDS)
+## instantiate a word cloud object
+alice_wc = WordCloud(
+    background_color='white',
+    max_words=2000,
+    stopwords=stopwords
+)
+
+## generate the word cloud
+alice_wc.generate(alice_novel)
+print ('File downloaded and saved!')
+
+## display the word cloud
+plt.imshow(alice_wc, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+##Let's resize the cloud so that we can see the less frequent words a little better.
+fig = plt.figure()
+fig.set_figwidth(14) # set width
+fig.set_figheight(18) # set height
+
+## display the cloud
+plt.imshow(alice_wc, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+##Much better! However, said isn't really an informative word. So let's add it to our stopwords and re-generate the cloud.
+stopwords.add('said') # add the words said to stopwords
+
+## re-generate the word cloud
+alice_wc.generate(alice_novel)
+
+## display the cloud
+fig = plt.figure()
+fig.set_figwidth(14) # set width
+fig.set_figheight(18) # set height
+
+plt.imshow(alice_wc, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+#Add Word Cloud to a mask
+## download image
+!wget --quiet https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Images/alice_mask.png
+    
+## save mask to alice_mask
+alice_mask = np.array(Image.open('alice_mask.png'))
+    
+print('Image downloaded and saved!')
+##Let's take a look at how the mask looks like.
+fig = plt.figure()
+fig.set_figwidth(14) # set width
+fig.set_figheight(18) # set height
+
+plt.imshow(alice_mask, cmap=plt.cm.gray, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+## instantiate a word cloud object
+alice_wc = WordCloud(background_color='white', max_words=2000, mask=alice_mask, stopwords=stopwords)
+
+## generate the word cloud
+alice_wc.generate(alice_novel)
+
+## display the word cloud
+fig = plt.figure()
+fig.set_figwidth(14) # set width
+fig.set_figheight(18) # set height
+
+plt.imshow(alice_wc, interpolation='bilinear')
+plt.axis('off')
+plt.show()
+
+
+
+*****************Using Seaborn
+# install seaborn
+!conda install -c anaconda seaborn --yes
+
+# import library
+import seaborn as sns
+
+print('Seaborn installed and imported!')
+
+#Create a new dataframe that stores that total number of landed immigrants to Canada per year from 1980 to 2013.
+## we can use the sum() method to get the total population per year
+df_tot = pd.DataFrame(df_can[years].sum(axis=0))
+
+## change the years to type float (useful for regression later on)
+df_tot.index = map(float, df_tot.index)
+
+## reset the index to put in back in as a column in the df_tot dataframe
+df_tot.reset_index(inplace=True)
+
+## rename columns
+df_tot.columns = ['year', 'total']
+
+## view the final dataframe
+df_tot.head()
+
+#regression plot 
+import seaborn as sns
+ax = sns.regplot(x='year', y='total', data=df_tot)
+
+
+#Seaborn Regression Plot Summary
+
+
+## create df_countries dataframe
+df_countries = df_can.loc[['Denmark', 'Norway', 'Sweden'], years].transpose()
+
+## create df_total by summing across three countries for each year
+df_total = pd.DataFrame(df_countries.sum(axis=1))
+
+## reset index in place
+df_total.reset_index(inplace=True)
+## rename columns
+df_total.columns = ['year', 'total']
+
+## change column year from string to int to create scatter plot
+df_total['year'] = df_total['year'].astype(int)
+
+## define figure size
+plt.figure(figsize=(15, 10))
+
+## define background style and font size
+sns.set(font_scale=1.5)
+sns.set_style('whitegrid')
+
+# generate plot and add title and axes labels
+ax = sns.regplot(x='year', y='total', data=df_total, color='green', marker='+', scatter_kws={'s': 200})
+ax.set(xlabel='Year', ylabel='Total Immigration')
+ax.set_title('Total Immigrationn from Denmark, Sweden, and Norway to Canada from 1980 - 2013')
+
+
+##color variation
+import seaborn as sns
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green')
+
+##Change marker shape
+import seaborn as sns
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+')
+
+##Change Size
+plt.figure(figsize=(15, 10))
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+')
+
+##And let's increase the size of markers so they match the new size of the figure, and add a title and x- and y-labels.
+plt.figure(figsize=(15, 10))
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+', scatter_kws={'s': 200})
+
+ax.set(xlabel='Year', ylabel='Total Immigration') # add x- and y-labels
+ax.set_title('Total Immigration to Canada from 1980 - 2013') # add title
+
+##increase the font size of the tickmark labels, the title, and the x- and y-labels
+plt.figure(figsize=(15, 10))
+
+sns.set(font_scale=1.5)
+
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+', scatter_kws={'s': 200})
+ax.set(xlabel='Year', ylabel='Total Immigration')
+ax.set_title('Total Immigration to Canada from 1980 - 2013')
+
+##White background
+plt.figure(figsize=(15, 10))
+
+sns.set(font_scale=1.5)
+sns.set_style('ticks') # change background to white background
+
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+', scatter_kws={'s': 200})
+ax.set(xlabel='Year', ylabel='Total Immigration')
+ax.set_title('Total Immigration to Canada from 1980 - 2013')
+
+##Gridlines
+plt.figure(figsize=(15, 10))
+
+sns.set(font_scale=1.5)
+sns.set_style('whitegrid')
+
+ax = sns.regplot(x='year', y='total', data=df_tot, color='green', marker='+', scatter_kws={'s': 200})
+ax.set(xlabel='Year', ylabel='Total Immigration')
+ax.set_title('Total Immigration to Canada from 1980 - 2013')
+
+
+#Folium (maps)
+import numpy as np  # useful for many scientific computing in Python
+import pandas as pd # primary data structure library
+!conda install -c conda-forge folium=0.5.0 --yes
+import folium
+
+print('Folium installed and imported!')
+
+# define the world map
+world_map = folium.Map()
+
+# display world map
+world_map
+
+# define the world map centered around Canada with a low zoom level
+world_map = folium.Map(location=[56.130, -106.35], zoom_start=4)
+
+# display world map
+world_map
+
+
+#Folium Summary
+## define Mexico's geolocation coordinates
+mexico_latitude = 23.6345 
+mexico_longitude = -102.5528
+
+## define the world map centered around Canada with a higher zoom level
+mexico_map = folium.Map(location=[mexico_latitude, mexico_longitude], zoom_start=4)
+
+## display world map
+mexico_map
+
+
+#Stamen Toner Maps (Black and White Maps)
+## create a Stamen Toner map of the world centered around Canada
+world_map = folium.Map(location=[56.130, -106.35], zoom_start=4, tiles='Stamen Toner')
+
+## display map
+world_map
+
+
+#Stamen Terrain Maps
+## create a Stamen Toner map of the world centered around Canada
+world_map = folium.Map(location=[56.130, -106.35], zoom_start=4, tiles='Stamen Terrain')
+
+## display map
+world_map
+
+
+#Mapbox Bright Maps (boarders visible up close, and country name in native language)
+# create a world map with a Mapbox Bright style.
+world_map = folium.Map(tiles='Mapbox Bright')
+
+# display the map
+world_map
+
+#Maps with Markers
+##Let's download and import the data on police department incidents using pandas read_csv() method.
+##Download the dataset and read it into a pandas dataframe:
+df_incidents = pd.read_csv('https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Data_Files/Police_Department_Incidents_-_Previous_Year__2016_.csv')
+
+print('Dataset downloaded and read into a pandas dataframe!')
+
+df_incidents.head()
+
+df_incidents.shape
+
+## get the first 100 crimes in the df_incidents dataframe
+limit = 100
+df_incidents = df_incidents.iloc[0:limit, :]
+df_incidents.shape
+
+## San Francisco latitude and longitude values
+latitude = 37.77
+longitude = -122.42
+
+## create map and display it
+sanfran_map = folium.Map(location=[latitude, longitude], zoom_start=12)
+
+## display the map of San Francisco
+sanfran_map
+
+##Now let's superimpose the locations of the crimes onto the map. The way to do that in Folium is to create a feature group with its own features and style and then add it to the sanfran_map.
+
+## instantiate a feature group for the incidents in the dataframe
+incidents = folium.map.FeatureGroup()
+
+## loop through the 100 crimes and add each to the incidents feature group
+for lat, lng, in zip(df_incidents.Y, df_incidents.X):
+    incidents.add_child(
+        folium.features.CircleMarker(
+            [lat, lng],
+            radius=5, # define how big you want the circle markers to be
+            color='yellow',
+            fill=True,
+            fill_color='blue',
+            fill_opacity=0.6
+        )
+    )
+
+## add incidents to map
+sanfran_map.add_child(incidents)
+
+##You can also add some pop-up text that would get displayed when you hover over a marker. Let's make each marker display the category of the crime when hovered over.
+## instantiate a feature group for the incidents in the dataframe
+incidents = folium.map.FeatureGroup()
+
+## loop through the 100 crimes and add each to the incidents feature group
+for lat, lng, in zip(df_incidents.Y, df_incidents.X):
+    incidents.add_child(
+        folium.features.CircleMarker(
+            [lat, lng],
+            radius=5, # define how big you want the circle markers to be
+            color='yellow',
+            fill=True,
+            fill_color='blue',
+            fill_opacity=0.6
+        )
+    )
+
+## add pop-up text to each marker on the map
+latitudes = list(df_incidents.Y)
+longitudes = list(df_incidents.X)
+labels = list(df_incidents.Category)
+
+for lat, lng, label in zip(latitudes, longitudes, labels):
+    folium.Marker([lat, lng], popup=label).add_to(sanfran_map)    
+    
+## add incidents to map
+sanfran_map.add_child(incidents)
+
+
+#Add Text with no markers
+## create map and display it
+sanfran_map = folium.Map(location=[latitude, longitude], zoom_start=12)
+
+## loop through the 100 crimes and add each to the map
+for lat, lng, label in zip(df_incidents.Y, df_incidents.X, df_incidents.Category):
+    folium.features.CircleMarker(
+        [lat, lng],
+        radius=5, # define how big you want the circle markers to be
+        color='yellow',
+        fill=True,
+        popup=label,
+        fill_color='blue',
+        fill_opacity=0.6
+    ).add_to(sanfran_map)
+
+## show map
+sanfran_map
+
+
+#Make Clusters
+from folium import plugins
+
+## let's start again with a clean copy of the map of San Francisco
+sanfran_map = folium.Map(location = [latitude, longitude], zoom_start = 12)
+
+## instantiate a mark cluster object for the incidents in the dataframe
+incidents = plugins.MarkerCluster().add_to(sanfran_map)
+
+## loop through the dataframe and add each data point to the mark cluster
+for lat, lng, label, in zip(df_incidents.Y, df_incidents.X, df_incidents.Category):
+    folium.Marker(
+        location=[lat, lng],
+        icon=None,
+        popup=label,
+    ).add_to(incidents)
+
+## display map
+sanfran_map
+
+
+
+#Choropleth Maps
+##Download the dataset and read it into a pandas dataframe:
+df_can = pd.read_excel('https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Data_Files/Canada.xlsx',
+                     sheet_name='Canada by Citizenship',
+                     skiprows=range(20),
+                     skipfooter=2)
+
+print('Data downloaded and read into a dataframe!')
+##Let's take a look at the first five items in our dataset.
+df_can.head()
+##Let's find out how many entries there are in our dataset.
+## print the dimensions of the dataframe
+print(df_can.shape)
+
+##Clean up data
+## clean up the dataset to remove unnecessary columns (eg. REG) 
+df_can.drop(['AREA','REG','DEV','Type','Coverage'], axis=1, inplace=True)
+
+## let's rename the columns so that they make sense
+df_can.rename(columns={'OdName':'Country', 'AreaName':'Continent','RegName':'Region'}, inplace=True)
+
+## for sake of consistency, let's also make all column labels of type string
+df_can.columns = list(map(str, df_can.columns))
+
+## add total column
+df_can['Total'] = df_can.sum(axis=1)
+
+## years that we will be using in this lesson - useful for plotting later on
+years = list(map(str, range(1980, 2014)))
+print ('data dimensions:', df_can.shape)
+
+## download countries geojson file
+!wget --quiet https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DV0101EN/labs/Data_Files/world_countries.json -O world_countries.json
+    
+print('GeoJSON file downloaded!')
+
+##Now that we have the GeoJSON file, let's create a world map
+world_geo = r'world_countries.json' # geojson file
+
+## create a plain world map
+world_map = folium.Map(location=[0, 0], zoom_start=2, tiles='Mapbox Bright')
+
+
+## generate choropleth map using the total immigration of each country to Canada from 1980 to 2013
+world_map.choropleth(
+    geo_data=world_geo,
+    data=df_can,
+    columns=['Country', 'Total'],
+    key_on='feature.properties.name',
+    fill_color='YlOrRd', 
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    legend_name='Immigration to Canada'
+)
+
+## display map
+world_map
+
+world_geo = r'world_countries.json'
+
+## create a numpy array of length 6 and has linear spacing from the minium total immigration to the maximum total immigration
+threshold_scale = np.linspace(df_can['Total'].min(),
+                              df_can['Total'].max(),
+                              6, dtype=int)
+threshold_scale = threshold_scale.tolist() # change the numpy array to a list
+threshold_scale[-1] = threshold_scale[-1] + 1 # make sure that the last value of the list is greater than the maximum immigration
+
+## let Folium determine the scale.
+world_map = folium.Map(location=[0, 0], zoom_start=2, tiles='Mapbox Bright')
+world_map.choropleth(
+    geo_data=world_geo,
+    data=df_can,
+    columns=['Country', 'Total'],
+    key_on='feature.properties.name',
+    threshold_scale=threshold_scale,
+    fill_color='YlOrRd', 
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    legend_name='Immigration to Canada',
+    reset=True
+)
+world_map
+
+
+#Choropleth map
+
+
+sf_geo = r'san-francisco.geojson' # geojson file
+
+# create a plain world map
+sf_map = folium.Map(location=[37.7749300, -122.4194200], zoom_start=12)
+
+# generate choropleth map using the count
+sf_map.choropleth(
+    geo_data=sf_geo,
+    data=df_crime,
+    columns=['Neighborhood','Count'],
+    key_on='feature.properties.DISTRICT',
+    fill_color='YlOrRd', 
+    fill_opacity=0.7, 
+    line_opacity=0.2,
+    legend_name='Crime Rate in San Francisco'
+)
+
+# display map
+sf_map
+
+
+
+
+#Calculate the Accuracy of a model
+## split data into train/test
+msk = np.random.rand(len(df)) < 0.8
+train_x = xdata[msk]
+test_x = xdata[~msk]
+train_y = ydata[msk]
+test_y = ydata[~msk]
+
+## build the model using train set
+popt, pcov = curve_fit(sigmoid, train_x, train_y)
+
+## predict using test set
+y_hat = sigmoid(test_x, *popt)
+
+## evaluation
+print("Mean absolute error: %.2f" % np.mean(np.absolute(y_hat - test_y)))
+print("Residual sum of squares (MSE): %.2f" % np.mean((y_hat - test_y) ** 2))
+from sklearn.metrics import r2_score
+print("R2-score: %.2f" % r2_score(y_hat , test_y) )
+
+
