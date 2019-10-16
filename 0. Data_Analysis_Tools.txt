@@ -1,6 +1,5 @@
 #IMPORTING TOOLS (PANDAS, MATPLOTLIB, NUMPY, SEABORN, SKLEARN.Pipeline, SKLEARN.Preprocessing (polynomial features))
 
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,7 +52,6 @@ df.columns = headers
 
 #download to local machine
 df.to_csv("automobile.csv",index = False)
-
 
 
 
@@ -154,7 +152,7 @@ df = pd.concat([df, dummy_variable_1], axis=1)
 ##drop original column "fuel-type" from "df"
 df.drop("fuel-type", axis = 1, inplace=True)
 
-#create a Total Column
+#Create a Total Column
 df_can['Total'] = df_can.sum(axis=1)
 
 #Select Columns
@@ -179,7 +177,7 @@ Set a different Column as Index
 df_can.set_index('Country', inplace=True)
 # tip: The opposite of set is reset. So to reset the index, we can use df_can.reset_index()
 
-# optional: to remove the name of the index
+# Optional: to remove the name of the index
 df_can.index.name = None
 
 
@@ -192,7 +190,7 @@ df_can.columns = list(map(str, df_can.columns))
 years = list(map(str, range(1980, 2014)))
 years
 
-#filter the dataframe based on a condition
+#Filter the dataframe based on a condition
 ## 1. create the condition boolean series
 condition = df_can['Continent'] == 'Asia'
 print(condition)
